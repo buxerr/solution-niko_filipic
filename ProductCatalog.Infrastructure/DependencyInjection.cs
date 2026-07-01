@@ -11,7 +11,21 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        var baseUrl = configuration["DummyJson:BaseUrl"] ?? "https://dummyjson.com/";
+        services.AddDummyJsonProductSource(configuration);
+
+        return services;
+    }
+
+    private static IServiceCollection AddDummyJsonProductSource(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        var baseUrl = configuration["DummyJson:BaseUrl"];
+
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            throw new InvalidOperationException("DummyJson:BaseUrl is not configured.");
+        }
 
         services.AddHttpClient<IProductSource, DummyJsonProductSource>(client =>
         {
