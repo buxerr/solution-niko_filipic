@@ -2,6 +2,7 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using ProductCatalog.Application.Abstractions;
 using ProductCatalog.Application.DTOs.Auth;
 using ProductCatalog.Infrastructure.DummyJson.Models;
@@ -14,15 +15,22 @@ public class DummyJsonAuthService : IAuthService
 
     private readonly HttpClient _httpClient;
 
-    public DummyJsonAuthService(HttpClient httpClient)
+    private readonly ILogger<DummyJsonAuthService> _logger;
+
+    public DummyJsonAuthService(
+        HttpClient httpClient,
+        ILogger<DummyJsonAuthService> logger)
     {
         _httpClient = httpClient;
+        _logger = logger;
     }
 
     public async Task<AuthResponseDto> LoginAsync(
         LoginRequestDto request,
         CancellationToken cancellationToken = default)
     {
+        _logger.LogInformation("Attempting login for user {Username}.", request.Username);
+
         var dummyJsonRequest = new DummyJsonLoginRequestDto
         {
             Username = request.Username,
@@ -38,6 +46,7 @@ public class DummyJsonAuthService : IAuthService
 
         if (response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Unauthorized)
         {
+            _logger.LogWarning("Failed login attempt for user {Username}.", request.Username);
             throw new UnauthorizedAccessException("Invalid username or password.");
         }
 
@@ -51,6 +60,8 @@ public class DummyJsonAuthService : IAuthService
         {
             throw new InvalidOperationException("DummyJSON login response was empty.");
         }
+
+        _logger.LogInformation("User {Username} logged in successfully.", loginResponse.Username);
 
         return new AuthResponseDto
         {
@@ -70,6 +81,8 @@ public class DummyJsonAuthService : IAuthService
         string accessToken,
         CancellationToken cancellationToken = default)
     {
+        _logger.LogInformation("Validating access token with DummyJSON.");
+
         using var request = new HttpRequestMessage(HttpMethod.Get, "auth/me");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 

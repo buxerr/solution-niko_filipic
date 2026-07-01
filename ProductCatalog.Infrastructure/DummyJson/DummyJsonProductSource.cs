@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using ProductCatalog.Application.Abstractions;
 using ProductCatalog.Domain.Entities;
 using ProductCatalog.Infrastructure.DummyJson.Models;
@@ -15,14 +16,21 @@ public class DummyJsonProductSource : IProductSource
 
     private readonly HttpClient _httpClient;
 
-    public DummyJsonProductSource(HttpClient httpClient)
+    private readonly ILogger<DummyJsonProductSource> _logger;
+
+    public DummyJsonProductSource(
+        HttpClient httpClient,
+        ILogger<DummyJsonProductSource> logger)
     {
         _httpClient = httpClient;
+        _logger = logger;
     }
 
     public async Task<IReadOnlyCollection<Product>> GetProductsAsync(
         CancellationToken cancellationToken = default)
     {
+        _logger.LogInformation("Fetching products from DummyJSON.");
+
         var products = new List<Product>();
         var skip = 0;
 
@@ -55,6 +63,8 @@ public class DummyJsonProductSource : IProductSource
         int id,
         CancellationToken cancellationToken = default)
     {
+        _logger.LogInformation("Fetching product {ProductId} from DummyJSON.", id);
+
         try
         {
             var product = await _httpClient.GetFromJsonAsync<DummyJsonProductDto>(
@@ -74,6 +84,8 @@ public class DummyJsonProductSource : IProductSource
     public async Task<IReadOnlyCollection<Category>> GetCategoriesAsync(
         CancellationToken cancellationToken = default)
     {
+        _logger.LogInformation("Fetching categories from DummyJSON.");
+
         var categories = await _httpClient.GetFromJsonAsync<List<DummyJsonCategoryDto>>(
             "products/categories",
             JsonOptions,

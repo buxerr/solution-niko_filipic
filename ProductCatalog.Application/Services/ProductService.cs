@@ -2,6 +2,7 @@
 using ProductCatalog.Application.DTOs;
 using ProductCatalog.Application.Queries;
 using ProductCatalog.Domain.Entities;
+using Microsoft.Extensions.Logging;
 
 namespace ProductCatalog.Application.Services;
 
@@ -11,15 +12,26 @@ public class ProductService : IProductService
 
     private readonly IProductSource _productSource;
 
-    public ProductService(IProductSource productSource)
+    private readonly ILogger<ProductService> _logger;
+
+    public ProductService(
+        IProductSource productSource,
+        ILogger<ProductService> logger)
     {
         _productSource = productSource;
+        _logger = logger;
     }
 
     public async Task<IReadOnlyCollection<ProductListItemDto>> GetProductsAsync(
         ProductQueryParameters query,
         CancellationToken cancellationToken = default)
     {
+        _logger.LogInformation(
+            "Getting products with filters. Category: {Category}, MinPrice: {MinPrice}, MaxPrice: {MaxPrice}",
+            query.Category,
+            query.MinPrice,
+            query.MaxPrice);
+
         ValidateQuery(query);
 
         var products = await _productSource.GetProductsAsync(cancellationToken);
@@ -44,9 +56,13 @@ public class ProductService : IProductService
                 product.Price <= query.MaxPrice.Value);
         }
 
-        return filteredProducts
+        var result = filteredProducts
             .Select(MapToListItemDto)
             .ToList();
+
+        _logger.LogInformation("Returning {ProductCount} products.", result.Count);
+
+        return result;
     }
 
     public async Task<IReadOnlyCollection<ProductListItemDto>> SearchProductsAsync(
@@ -58,12 +74,21 @@ public class ProductService : IProductService
             return [];
         }
 
+        _logger.LogInformation("Searching products by term: {SearchTerm}", searchTerm);
+
         var products = await _productSource.GetProductsAsync(cancellationToken);
 
-        return products
+        var result = products
             .Where(product => product.Title.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
             .Select(MapToListItemDto)
             .ToList();
+
+        _logger.LogInformation(
+            "Search term {SearchTerm} returned {ProductCount} products.",
+            searchTerm,
+            result.Count);
+
+        return result;
     }
 
     public async Task<ProductDetailsDto?> GetProductByIdAsync(
