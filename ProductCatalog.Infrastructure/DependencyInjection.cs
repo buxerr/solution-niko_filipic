@@ -12,6 +12,7 @@ public static class DependencyInjection
         IConfiguration configuration)
     {
         services.AddDummyJsonProductSource(configuration);
+        services.AddDummyJsonAuthService(configuration);
 
         return services;
     }
@@ -35,4 +36,32 @@ public static class DependencyInjection
 
         return services;
     }
+
+    private static IServiceCollection AddDummyJsonAuthService(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        var baseUrl = GetDummyJsonBaseUrl(configuration);
+
+        services.AddHttpClient<IAuthService, DummyJsonAuthService>(client =>
+        {
+            client.BaseAddress = new Uri(baseUrl);
+            client.Timeout = TimeSpan.FromSeconds(10);
+        });
+
+        return services;
+    }
+
+    private static string GetDummyJsonBaseUrl(IConfiguration configuration)
+    {
+        var baseUrl = configuration["DummyJson:BaseUrl"];
+
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            throw new InvalidOperationException("DummyJson:BaseUrl is not configured.");
+        }
+
+        return baseUrl;
+    }
+
 }
