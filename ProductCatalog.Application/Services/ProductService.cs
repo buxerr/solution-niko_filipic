@@ -1,8 +1,9 @@
-﻿using ProductCatalog.Application.Abstractions;
+﻿using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
+using ProductCatalog.Application.Abstractions;
 using ProductCatalog.Application.DTOs;
 using ProductCatalog.Application.Queries;
 using ProductCatalog.Domain.Entities;
-using Microsoft.Extensions.Logging;
 
 namespace ProductCatalog.Application.Services;
 
@@ -11,15 +12,17 @@ public class ProductService : IProductService
     private const int ShortDescriptionLength = 100;
 
     private readonly IProductSource _productSource;
-
     private readonly ILogger<ProductService> _logger;
+    private readonly IMemoryCache _cache;
 
     public ProductService(
         IProductSource productSource,
-        ILogger<ProductService> logger)
+        ILogger<ProductService> logger,
+        IMemoryCache cache)
     {
         _productSource = productSource;
         _logger = logger;
+        _cache = cache;
     }
 
     public async Task<IReadOnlyCollection<ProductListItemDto>> GetProductsAsync(
@@ -34,8 +37,15 @@ public class ProductService : IProductService
 
         ValidateQuery(query);
 
-        var products = await _productSource.GetProductsAsync(cancellationToken);
+        var cacheKey = CreateProductsCacheKey(query);
 
+        if (_cache.TryGetValue(cacheKey, out IReadOnlyCollection<ProductListItemDto>? cachedProducts))
+        {
+            _logger.LogInformation("Returning products from cache. CacheKey: {CacheKey}", cacheKey);
+            return cachedProducts!;
+        }
+
+        var products = await _productSource.GetProductsAsync(cancellationToken);
         var filteredProducts = products.AsEnumerable();
 
         if (!string.IsNullOrWhiteSpace(query.Category))
@@ -60,7 +70,12 @@ public class ProductService : IProductService
             .Select(MapToListItemDto)
             .ToList();
 
-        _logger.LogInformation("Returning {ProductCount} products.", result.Count);
+        _cache.Set(cacheKey, result, TimeSpan.FromMinutes(5));
+
+        _logger.LogInformation(
+            "Returning {ProductCount} products and storing result in cache. CacheKey: {CacheKey}",
+            result.Count,
+            cacheKey);
 
         return result;
     }
@@ -74,18 +89,29 @@ public class ProductService : IProductService
             return [];
         }
 
+        var normalizedSearchTerm = searchTerm.Trim().ToLowerInvariant();
+        var cacheKey = $"products:search:{normalizedSearchTerm}";
+
+        if (_cache.TryGetValue(cacheKey, out IReadOnlyCollection<ProductListItemDto>? cachedProducts))
+        {
+            _logger.LogInformation("Returning search results from cache. CacheKey: {CacheKey}", cacheKey);
+            return cachedProducts!;
+        }
+
         _logger.LogInformation("Searching products by term: {SearchTerm}", searchTerm);
 
         var products = await _productSource.GetProductsAsync(cancellationToken);
 
         var result = products
-            .Where(product => product.Title.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+            .Where(product => product.Title.Contains(normalizedSearchTerm, StringComparison.OrdinalIgnoreCase))
             .Select(MapToListItemDto)
             .ToList();
 
+        _cache.Set(cacheKey, result, TimeSpan.FromMinutes(5));
+
         _logger.LogInformation(
-            "Search term {SearchTerm} returned {ProductCount} products.",
-            searchTerm,
+            "Search term {SearchTerm} returned {ProductCount} products and was stored in cache.",
+            normalizedSearchTerm,
             result.Count);
 
         return result;
@@ -95,25 +121,52 @@ public class ProductService : IProductService
         int id,
         CancellationToken cancellationToken = default)
     {
+        var cacheKey = $"products:details:{id}";
+
+        if (_cache.TryGetValue(cacheKey, out ProductDetailsDto? cachedProduct))
+        {
+            _logger.LogInformation("Returning product details from cache. ProductId: {ProductId}", id);
+            return cachedProduct;
+        }
+
         var product = await _productSource.GetProductByIdAsync(id, cancellationToken);
 
-        return product is null
-            ? null
-            : MapToDetailsDto(product);
+        if (product is null)
+        {
+            return null;
+        }
+
+        var result = MapToDetailsDto(product);
+
+        _cache.Set(cacheKey, result, TimeSpan.FromMinutes(10));
+
+        return result;
     }
 
     public async Task<IReadOnlyCollection<CategoryDto>> GetCategoriesAsync(
         CancellationToken cancellationToken = default)
     {
+        const string cacheKey = "categories:all";
+
+        if (_cache.TryGetValue(cacheKey, out IReadOnlyCollection<CategoryDto>? cachedCategories))
+        {
+            _logger.LogInformation("Returning categories from cache.");
+            return cachedCategories!;
+        }
+
         var categories = await _productSource.GetCategoriesAsync(cancellationToken);
 
-        return categories
+        var result = categories
             .Select(category => new CategoryDto
             {
                 Slug = category.Slug,
                 Name = category.Name
             })
             .ToList();
+
+        _cache.Set(cacheKey, result, TimeSpan.FromMinutes(30));
+
+        return result;
     }
 
     private static ProductListItemDto MapToListItemDto(Product product)
@@ -153,6 +206,18 @@ public class ProductService : IProductService
         }
 
         return description[..ShortDescriptionLength];
+    }
+
+    private static string CreateProductsCacheKey(ProductQueryParameters query)
+    {
+        var category = string.IsNullOrWhiteSpace(query.Category)
+            ? "all"
+            : query.Category.Trim().ToLowerInvariant();
+
+        var minPrice = query.MinPrice?.ToString() ?? "none";
+        var maxPrice = query.MaxPrice?.ToString() ?? "none";
+
+        return $"products:filter:{category}:{minPrice}:{maxPrice}";
     }
 
     private static void ValidateQuery(ProductQueryParameters query)
