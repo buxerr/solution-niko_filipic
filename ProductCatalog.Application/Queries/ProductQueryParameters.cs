@@ -8,5 +8,4 @@ public class ProductQueryParameters
 
     public decimal? MaxPrice { get; set; }
 
-    public string? Search { get; set; }
 }

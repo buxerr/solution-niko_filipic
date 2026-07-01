@@ -44,13 +44,24 @@ public class ProductService : IProductService
                 product.Price <= query.MaxPrice.Value);
         }
 
-        if (!string.IsNullOrWhiteSpace(query.Search))
+        return filteredProducts
+            .Select(MapToListItemDto)
+            .ToList();
+    }
+
+    public async Task<IReadOnlyCollection<ProductListItemDto>> SearchProductsAsync(
+        string searchTerm,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
         {
-            filteredProducts = filteredProducts.Where(product =>
-                product.Title.Contains(query.Search, StringComparison.OrdinalIgnoreCase));
+            return [];
         }
 
-        return filteredProducts
+        var products = await _productSource.GetProductsAsync(cancellationToken);
+
+        return products
+            .Where(product => product.Title.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
             .Select(MapToListItemDto)
             .ToList();
     }

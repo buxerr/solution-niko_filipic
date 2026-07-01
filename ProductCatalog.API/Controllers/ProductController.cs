@@ -6,12 +6,12 @@ using ProductCatalog.Application.Services;
 namespace ProductCatalog.API.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
-public class ProductsController : ControllerBase
+[Route("api/products")]
+public class ProductController : ControllerBase
 {
     private readonly IProductService _productService;
 
-    public ProductsController(IProductService productService)
+    public ProductController(IProductService productService)
     {
         _productService = productService;
     }
@@ -58,12 +58,7 @@ public class ProductsController : ControllerBase
             return BadRequest(new { message = "Search query is required." });
         }
 
-        var query = new ProductQueryParameters
-        {
-            Search = q
-        };
-
-        var products = await _productService.GetProductsAsync(query, cancellationToken);
+        var products = await _productService.SearchProductsAsync(q, cancellationToken);
 
         return Ok(products);
     }

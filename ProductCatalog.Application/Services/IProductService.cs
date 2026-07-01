@@ -9,6 +9,10 @@ public interface IProductService
         ProductQueryParameters query,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyCollection<ProductListItemDto>> SearchProductsAsync(
+        string searchTerm,
+        CancellationToken cancellationToken = default);
+
     Task<ProductDetailsDto?> GetProductByIdAsync(
         int id,
         CancellationToken cancellationToken = default);
