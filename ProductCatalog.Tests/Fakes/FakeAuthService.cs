@@ -5,22 +5,21 @@ namespace ProductCatalog.Tests.Fakes;
 
 public class FakeAuthService : IAuthService
 {
-    public Task<AuthResponseDto> LoginAsync(
-        LoginRequestDto request,
-        CancellationToken cancellationToken = default)
+    public Task<AuthResponseDto?> LoginAsync(
+    LoginRequestDto request,
+    CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(new AuthResponseDto
+        var response = new AuthResponseDto
         {
-            Id = 1,
+            AccessToken = "valid-test-token",
+            RefreshToken = "refresh-test-token",
             Username = request.Username,
             Email = "test@example.com",
             FirstName = "Test",
-            LastName = "User",
-            Gender = "unknown",
-            Image = "test.jpg",
-            AccessToken = "valid-test-token",
-            RefreshToken = "refresh-test-token"
-        });
+            LastName = "User"
+        };
+
+        return Task.FromResult<AuthResponseDto?>(response);
     }
 
     public Task<AuthUserDto?> GetCurrentUserAsync(

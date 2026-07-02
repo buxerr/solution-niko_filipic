@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.OpenApi.Models;
 using ProductCatalog.API.Authentication;
+using ProductCatalog.API.Middleware;
 using ProductCatalog.Application.Services;
 using ProductCatalog.Infrastructure;
 using Serilog;
@@ -61,6 +62,8 @@ builder.Services.AddAuthorization();
 builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
+
+app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {

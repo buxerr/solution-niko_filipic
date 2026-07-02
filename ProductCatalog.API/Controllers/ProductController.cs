@@ -23,16 +23,9 @@ public class ProductController : ControllerBase
         [FromQuery] ProductQueryParameters query,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            var products = await _productService.GetProductsAsync(query, cancellationToken);
+        var products = await _productService.GetProductsAsync(query, cancellationToken);
 
-            return Ok(products);
-        }
-        catch (ArgumentException exception)
-        {
-            return BadRequest(new { message = exception.Message });
-        }
+        return Ok(products);
     }
 
     [HttpGet("{id:int}")]

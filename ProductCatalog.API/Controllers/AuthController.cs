@@ -29,15 +29,17 @@ public class AuthController : ControllerBase
             return BadRequest(new { message = "Username and password are required." });
         }
 
-        try
+        var response = await _authService.LoginAsync(request, cancellationToken);
+
+        if (response is null)
         {
-            var response = await _authService.LoginAsync(request, cancellationToken);
-            return Ok(response);
+            return Unauthorized(new
+            {
+                message = "Invalid username or password."
+            });
         }
-        catch (UnauthorizedAccessException exception)
-        {
-            return Unauthorized(new { message = exception.Message });
-        }
+
+        return Ok(response);
     }
 
     [Authorize]

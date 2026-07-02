@@ -25,7 +25,7 @@ public class DummyJsonAuthService : IAuthService
         _logger = logger;
     }
 
-    public async Task<AuthResponseDto> LoginAsync(
+    public async Task<AuthResponseDto?> LoginAsync(
         LoginRequestDto request,
         CancellationToken cancellationToken = default)
     {
@@ -47,7 +47,7 @@ public class DummyJsonAuthService : IAuthService
         if (response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Unauthorized)
         {
             _logger.LogWarning("Failed login attempt for user {Username}.", request.Username);
-            throw new UnauthorizedAccessException("Invalid username or password.");
+            return null;
         }
 
         response.EnsureSuccessStatusCode();

@@ -4,7 +4,7 @@ namespace ProductCatalog.Application.Abstractions;
 
 public interface IAuthService
 {
-    Task<AuthResponseDto> LoginAsync(
+    Task<AuthResponseDto?> LoginAsync(
         LoginRequestDto request,
         CancellationToken cancellationToken = default);
 
