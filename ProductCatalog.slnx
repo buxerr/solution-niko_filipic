@@ -3,4 +3,5 @@
   <Project Path="ProductCatalog.Application/ProductCatalog.Application.csproj" Id="5eb50220-a2c5-4a73-b1bc-135c0b547977" />
   <Project Path="ProductCatalog.Domain/ProductCatalog.Domain.csproj" Id="3f6071e1-9dc6-4f16-8fc5-c7737188f868" />
   <Project Path="ProductCatalog.Infrastructure/ProductCatalog.Infrastructure.csproj" Id="008a8f98-0c62-4354-ba51-0b2691e3470f" />
+  <Project Path="ProductCatalog.Tests/ProductCatalog.Tests.csproj" />
 </Solution>

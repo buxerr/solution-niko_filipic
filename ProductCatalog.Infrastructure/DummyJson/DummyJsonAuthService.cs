@@ -88,12 +88,14 @@ public class DummyJsonAuthService : IAuthService
 
         using var response = await _httpClient.SendAsync(request, cancellationToken);
 
-        if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+        if (!response.IsSuccessStatusCode)
         {
+            _logger.LogWarning(
+                "DummyJSON token validation failed with status code {StatusCode}.",
+                response.StatusCode);
+
             return null;
         }
-
-        response.EnsureSuccessStatusCode();
 
         var user = await response.Content.ReadFromJsonAsync<DummyJsonAuthUserDto>(
             JsonOptions,
@@ -101,6 +103,7 @@ public class DummyJsonAuthService : IAuthService
 
         if (user is null)
         {
+            _logger.LogWarning("DummyJSON auth/me returned empty response.");
             return null;
         }
 
