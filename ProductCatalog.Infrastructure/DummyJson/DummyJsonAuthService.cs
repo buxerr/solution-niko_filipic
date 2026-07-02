@@ -135,7 +135,10 @@ public class DummyJsonAuthService : IAuthService
             JsonOptions,
             cancellationToken);
 
-        if (response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Unauthorized)
+        if (response.StatusCode is
+            HttpStatusCode.BadRequest or
+            HttpStatusCode.Unauthorized or
+            HttpStatusCode.Forbidden)
         {
             _logger.LogWarning("DummyJSON refresh token request failed.");
             return null;

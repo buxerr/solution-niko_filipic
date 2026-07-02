@@ -6,13 +6,18 @@ namespace ProductCatalog.Tests.Fakes;
 public class FakeAuthService : IAuthService
 {
     public Task<AuthResponseDto?> LoginAsync(
-    LoginRequestDto request,
-    CancellationToken cancellationToken = default)
+        LoginRequestDto request,
+        CancellationToken cancellationToken = default)
     {
+        if (request.Username != "test-user" || request.Password != "test-password")
+        {
+            return Task.FromResult<AuthResponseDto?>(null);
+        }
+
         var response = new AuthResponseDto
         {
             AccessToken = "valid-test-token",
-            RefreshToken = "refresh-test-token",
+            RefreshToken = "valid-refresh-token",
             Username = request.Username,
             Email = "test@example.com",
             FirstName = "Test",
@@ -23,9 +28,14 @@ public class FakeAuthService : IAuthService
     }
 
     public Task<RefreshTokenResponseDto?> RefreshTokenAsync(
-    RefreshTokenRequestDto request,
-    CancellationToken cancellationToken = default)
+        RefreshTokenRequestDto request,
+        CancellationToken cancellationToken = default)
     {
+        if (request.RefreshToken != "valid-refresh-token")
+        {
+            return Task.FromResult<RefreshTokenResponseDto?>(null);
+        }
+
         var response = new RefreshTokenResponseDto
         {
             AccessToken = "valid-test-token",
@@ -44,15 +54,17 @@ public class FakeAuthService : IAuthService
             return Task.FromResult<AuthUserDto?>(null);
         }
 
-        return Task.FromResult<AuthUserDto?>(new AuthUserDto
+        var user = new AuthUserDto
         {
             Id = 1,
-            Username = "testuser",
+            Username = "test-user",
             Email = "test@example.com",
             FirstName = "Test",
             LastName = "User",
-            Gender = "unknown",
-            Image = "test.jpg"
-        });
+            Gender = "male",
+            Image = "test-user.jpg"
+        };
+
+        return Task.FromResult<AuthUserDto?>(user);
     }
 }

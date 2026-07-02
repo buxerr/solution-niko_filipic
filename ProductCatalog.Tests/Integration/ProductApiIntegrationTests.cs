@@ -1,14 +1,15 @@
-﻿using System.Net;
-using System.Net.Http.Headers;
-using System.Net.Http.Json;
-using Microsoft.AspNetCore.Mvc.Testing;
+﻿using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using ProductCatalog.Application.Abstractions;
 using ProductCatalog.Application.DTOs;
+using ProductCatalog.Application.DTOs.Auth;
 using ProductCatalog.Domain.Entities;
 using ProductCatalog.Tests.Fakes;
+using System.Net;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
 
 namespace ProductCatalog.Tests.Integration;
 
@@ -33,6 +34,57 @@ public class ProductApiIntegrationTests
                     services.AddSingleton<IAuthService, FakeAuthService>();
                 });
             });
+    }
+
+    [Fact]
+    public async Task RefreshToken_WithValidRefreshToken_ReturnsOk()
+    {
+        var client = _factory.CreateClient();
+
+        var request = new RefreshTokenRequestDto
+        {
+            RefreshToken = "valid-refresh-token"
+        };
+
+        var response = await client.PostAsJsonAsync("/api/auth/refresh", request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var body = await response.Content.ReadFromJsonAsync<RefreshTokenResponseDto>();
+
+        Assert.NotNull(body);
+        Assert.Equal("valid-test-token", body.AccessToken);
+        Assert.Equal("new-refresh-test-token", body.RefreshToken);
+    }
+
+    [Fact]
+    public async Task RefreshToken_WithEmptyRefreshToken_ReturnsBadRequest()
+    {
+        var client = _factory.CreateClient();
+
+        var request = new RefreshTokenRequestDto
+        {
+            RefreshToken = string.Empty
+        };
+
+        var response = await client.PostAsJsonAsync("/api/auth/refresh", request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task RefreshToken_WithInvalidRefreshToken_ReturnsUnauthorized()
+    {
+        var client = _factory.CreateClient();
+
+        var request = new RefreshTokenRequestDto
+        {
+            RefreshToken = "invalid-refresh-token"
+        };
+
+        var response = await client.PostAsJsonAsync("/api/auth/refresh", request);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     [Fact]
