@@ -1,7 +1,9 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using ProductCatalog.Application.Abstractions;
 using ProductCatalog.Infrastructure.DummyJson;
+using ProductCatalog.Infrastructure.Options;
 
 namespace ProductCatalog.Infrastructure;
 
@@ -11,57 +13,58 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.AddDummyJsonProductSource(configuration);
-        services.AddDummyJsonAuthService(configuration);
+        services.AddDummyJsonOptions(configuration);
+        services.AddDummyJsonProductSource();
+        services.AddDummyJsonAuthService();
+
+        return services;
+    }
+
+    private static IServiceCollection AddDummyJsonOptions(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services
+            .AddOptions<DummyJsonOptions>()
+            .Bind(configuration.GetSection(DummyJsonOptions.SectionName))
+            .ValidateDataAnnotations()
+            .Validate(
+                options => Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out _),
+                "DummyJson:BaseUrl must be a valid absolute URL.")
+            .ValidateOnStart();
 
         return services;
     }
 
     private static IServiceCollection AddDummyJsonProductSource(
-        this IServiceCollection services,
-        IConfiguration configuration)
+        this IServiceCollection services)
     {
-        var baseUrl = configuration["DummyJson:BaseUrl"];
-
-        if (string.IsNullOrWhiteSpace(baseUrl))
+        services.AddHttpClient<IProductSource, DummyJsonProductSource>((serviceProvider, client) =>
         {
-            throw new InvalidOperationException("DummyJson:BaseUrl is not configured.");
-        }
+            var options = serviceProvider
+                .GetRequiredService<IOptions<DummyJsonOptions>>()
+                .Value;
 
-        services.AddHttpClient<IProductSource, DummyJsonProductSource>(client =>
-        {
-            client.BaseAddress = new Uri(baseUrl);
-            client.Timeout = TimeSpan.FromSeconds(10);
+            client.BaseAddress = new Uri(options.BaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
         });
 
         return services;
     }
 
     private static IServiceCollection AddDummyJsonAuthService(
-        this IServiceCollection services,
-        IConfiguration configuration)
+        this IServiceCollection services)
     {
-        var baseUrl = GetDummyJsonBaseUrl(configuration);
-
-        services.AddHttpClient<IAuthService, DummyJsonAuthService>(client =>
+        services.AddHttpClient<IAuthService, DummyJsonAuthService>((serviceProvider, client) =>
         {
-            client.BaseAddress = new Uri(baseUrl);
-            client.Timeout = TimeSpan.FromSeconds(10);
+            var options = serviceProvider
+                .GetRequiredService<IOptions<DummyJsonOptions>>()
+                .Value;
+
+            client.BaseAddress = new Uri(options.BaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
         });
 
         return services;
     }
-
-    private static string GetDummyJsonBaseUrl(IConfiguration configuration)
-    {
-        var baseUrl = configuration["DummyJson:BaseUrl"];
-
-        if (string.IsNullOrWhiteSpace(baseUrl))
-        {
-            throw new InvalidOperationException("DummyJson:BaseUrl is not configured.");
-        }
-
-        return baseUrl;
-    }
-
 }
