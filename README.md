@@ -130,8 +130,6 @@ Ručni test kroz Swagger:
 
 ## AI alati
 
-## AI alati
-
 Tijekom izrade korišteni su AI alati kao pomoć pri planiranju arhitekture, provjeri pristupa, pisanju testova i dokumentacije. Implementacija je ručno provjerena kroz lokalni razvoj i refaktoriranje.
 
 ---
