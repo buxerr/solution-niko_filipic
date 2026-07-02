@@ -22,6 +22,19 @@ public class FakeAuthService : IAuthService
         return Task.FromResult<AuthResponseDto?>(response);
     }
 
+    public Task<RefreshTokenResponseDto?> RefreshTokenAsync(
+    RefreshTokenRequestDto request,
+    CancellationToken cancellationToken = default)
+    {
+        var response = new RefreshTokenResponseDto
+        {
+            AccessToken = "valid-test-token",
+            RefreshToken = "new-refresh-test-token"
+        };
+
+        return Task.FromResult<RefreshTokenResponseDto?>(response);
+    }
+
     public Task<AuthUserDto?> GetCurrentUserAsync(
         string accessToken,
         CancellationToken cancellationToken = default)

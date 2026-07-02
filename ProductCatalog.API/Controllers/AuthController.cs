@@ -44,6 +44,31 @@ public class AuthController : ControllerBase
         return Ok(response);
     }
 
+    [AllowAnonymous]
+    [HttpPost("refresh")]
+    [EnableRateLimiting("login")]
+    public async Task<ActionResult<RefreshTokenResponseDto>> RefreshToken(
+    RefreshTokenRequestDto request,
+    CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.RefreshToken))
+        {
+            return BadRequest(new { message = "Refresh token is required." });
+        }
+
+        var response = await _authService.RefreshTokenAsync(request, cancellationToken);
+
+        if (response is null)
+        {
+            return Unauthorized(new
+            {
+                message = "Invalid refresh token."
+            });
+        }
+
+        return Ok(response);
+    }
+
     [Authorize]
     [HttpGet("me")]
     public ActionResult GetCurrentUser()

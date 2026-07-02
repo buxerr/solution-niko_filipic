@@ -118,4 +118,44 @@ public class DummyJsonAuthService : IAuthService
             Image = user.Image
         };
     }
+
+    public async Task<RefreshTokenResponseDto?> RefreshTokenAsync(
+    RefreshTokenRequestDto request,
+    CancellationToken cancellationToken = default)
+    {
+        var dummyJsonRequest = new DummyJsonRefreshTokenRequestDto
+        {
+            RefreshToken = request.RefreshToken,
+            ExpiresInMins = 30
+        };
+
+        var response = await _httpClient.PostAsJsonAsync(
+            "auth/refresh",
+            dummyJsonRequest,
+            JsonOptions,
+            cancellationToken);
+
+        if (response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Unauthorized)
+        {
+            _logger.LogWarning("DummyJSON refresh token request failed.");
+            return null;
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        var refreshResponse = await response.Content.ReadFromJsonAsync<DummyJsonRefreshTokenResponseDto>(
+            JsonOptions,
+            cancellationToken);
+
+        if (refreshResponse is null)
+        {
+            throw new InvalidOperationException("DummyJSON refresh token response was empty.");
+        }
+
+        return new RefreshTokenResponseDto
+        {
+            AccessToken = refreshResponse.AccessToken,
+            RefreshToken = refreshResponse.RefreshToken
+        };
+    }
 }

@@ -8,6 +8,10 @@ public interface IAuthService
         LoginRequestDto request,
         CancellationToken cancellationToken = default);
 
+    Task<RefreshTokenResponseDto?> RefreshTokenAsync(
+        RefreshTokenRequestDto request,
+        CancellationToken cancellationToken = default);
+
     Task<AuthUserDto?> GetCurrentUserAsync(
         string accessToken,
         CancellationToken cancellationToken = default);
