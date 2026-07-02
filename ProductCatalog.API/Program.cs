@@ -84,7 +84,7 @@ builder.Services.AddRateLimiter(options =>
             });
     });
 
-    options.AddPolicy("login", httpContext =>
+    options.AddPolicy("auth", httpContext =>
     {
         var ipAddress = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 

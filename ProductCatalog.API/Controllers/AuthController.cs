@@ -18,7 +18,7 @@ public class AuthController : ControllerBase
         _authService = authService;
     }
 
-    [EnableRateLimiting("login")]
+    [EnableRateLimiting("auth")]
     [AllowAnonymous]
     [HttpPost("login")]
     public async Task<ActionResult<AuthResponseDto>> Login(
@@ -46,7 +46,7 @@ public class AuthController : ControllerBase
 
     [AllowAnonymous]
     [HttpPost("refresh")]
-    [EnableRateLimiting("login")]
+    [EnableRateLimiting("auth")]
     public async Task<ActionResult<RefreshTokenResponseDto>> RefreshToken(
     RefreshTokenRequestDto request,
     CancellationToken cancellationToken)

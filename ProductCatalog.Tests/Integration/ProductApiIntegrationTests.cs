@@ -138,6 +138,56 @@ public class ProductApiIntegrationTests
         return client;
     }
 
+    [Fact]
+    public async Task GetProductById_ReturnsProductDetails_WhenTokenIsValid()
+    {
+        var client = CreateAuthorizedClient();
+
+        var response = await client.GetAsync("/api/products/1");
+
+        response.EnsureSuccessStatusCode();
+
+        var product = await response.Content.ReadFromJsonAsync<ProductDetailsDto>();
+
+        Assert.NotNull(product);
+        Assert.Equal(1, product.Id);
+        Assert.Equal("Phone", product.Name);
+        Assert.Equal("smartphones", product.CategorySlug);
+    }
+
+    [Fact]
+    public async Task SearchProducts_ReturnsMatchingProducts_WhenTokenIsValid()
+    {
+        var client = CreateAuthorizedClient();
+
+        var response = await client.GetAsync("/api/products/search?q=phone");
+
+        response.EnsureSuccessStatusCode();
+
+        var products = await response.Content.ReadFromJsonAsync<List<ProductListItemDto>>();
+
+        Assert.NotNull(products);
+        Assert.Single(products);
+        Assert.Equal("Phone", products[0].Name);
+    }
+
+    [Fact]
+    public async Task GetCategories_ReturnsCategories_WhenTokenIsValid()
+    {
+        var client = CreateAuthorizedClient();
+
+        var response = await client.GetAsync("/api/categories");
+
+        response.EnsureSuccessStatusCode();
+
+        var categories = await response.Content.ReadFromJsonAsync<List<CategoryDto>>();
+
+        Assert.NotNull(categories);
+        Assert.Equal(2, categories.Count);
+        Assert.Contains(categories, category => category.Slug == "beauty");
+        Assert.Contains(categories, category => category.Slug == "smartphones");
+    }
+
     private static IReadOnlyCollection<Product> CreateProducts()
     {
         return
