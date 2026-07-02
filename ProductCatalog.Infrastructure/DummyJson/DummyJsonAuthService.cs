@@ -120,8 +120,8 @@ public class DummyJsonAuthService : IAuthService
     }
 
     public async Task<RefreshTokenResponseDto?> RefreshTokenAsync(
-    RefreshTokenRequestDto request,
-    CancellationToken cancellationToken = default)
+        RefreshTokenRequestDto request,
+        CancellationToken cancellationToken = default)
     {
         var dummyJsonRequest = new DummyJsonRefreshTokenRequestDto
         {
@@ -129,7 +129,7 @@ public class DummyJsonAuthService : IAuthService
             ExpiresInMins = 30
         };
 
-        var response = await _httpClient.PostAsJsonAsync(
+        using var response = await _httpClient.PostAsJsonAsync(
             "auth/refresh",
             dummyJsonRequest,
             JsonOptions,

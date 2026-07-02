@@ -48,8 +48,8 @@ public class AuthController : ControllerBase
     [HttpPost("refresh")]
     [EnableRateLimiting("auth")]
     public async Task<ActionResult<RefreshTokenResponseDto>> RefreshToken(
-    RefreshTokenRequestDto request,
-    CancellationToken cancellationToken)
+        RefreshTokenRequestDto request,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.RefreshToken))
         {

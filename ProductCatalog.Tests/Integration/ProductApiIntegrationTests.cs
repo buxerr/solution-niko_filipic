@@ -172,6 +172,26 @@ public class ProductApiIntegrationTests
     }
 
     [Fact]
+    public async Task GetProducts_WithInvalidPriceRange_ReturnsBadRequest()
+    {
+        var client = CreateAuthorizedClient();
+
+        var response = await client.GetAsync("/api/products?minPrice=100&maxPrice=10");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Health_ReturnsOk()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.GetAsync("/health");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
     public async Task GetCategories_ReturnsCategories_WhenTokenIsValid()
     {
         var client = CreateAuthorizedClient();

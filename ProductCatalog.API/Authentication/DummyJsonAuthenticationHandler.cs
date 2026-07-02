@@ -1,11 +1,12 @@
-﻿using System.Net.Http.Headers;
-using System.Security.Claims;
-using System.Text.Encodings.Web;
-using Microsoft.AspNetCore.Authentication;
+﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
 using ProductCatalog.Application.Abstractions;
+using ProductCatalog.Infrastructure.Options;
+using System.Net.Http.Headers;
+using System.Security.Claims;
+using System.Text.Encodings.Web;
 
 namespace ProductCatalog.API.Authentication;
 
@@ -13,17 +14,20 @@ public class DummyJsonAuthenticationHandler : AuthenticationHandler<Authenticati
 {
     private readonly IAuthService _authService;
     private readonly IMemoryCache _cache;
+    private readonly DummyJsonOptions _dummyJsonOptions;
 
     public DummyJsonAuthenticationHandler(
-        IOptionsMonitor<AuthenticationSchemeOptions> options,
+        IOptionsMonitor<AuthenticationSchemeOptions> authOptions,
         ILoggerFactory logger,
         UrlEncoder encoder,
         IAuthService authService,
-        IMemoryCache cache)
-        : base(options, logger, encoder)
+        IMemoryCache cache,
+        IOptions<DummyJsonOptions> dummyJsonOptions)
+        : base(authOptions, logger, encoder)
     {
         _authService = authService;
         _cache = cache;
+        _dummyJsonOptions = dummyJsonOptions.Value;
     }
 
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
@@ -77,7 +81,10 @@ public class DummyJsonAuthenticationHandler : AuthenticationHandler<Authenticati
         var identity = new ClaimsIdentity(claims, Scheme.Name);
         var principal = new ClaimsPrincipal(identity);
 
-        _cache.Set(cacheKey, principal, TimeSpan.FromMinutes(5));
+        _cache.Set(
+            cacheKey,
+            principal,
+            TimeSpan.FromMinutes(_dummyJsonOptions.AuthValidationCacheMinutes));
 
         var ticket = new AuthenticationTicket(principal, Scheme.Name);
         return AuthenticateResult.Success(ticket);
