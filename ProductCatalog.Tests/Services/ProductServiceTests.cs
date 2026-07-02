@@ -1,7 +1,9 @@
+using FluentValidation;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using ProductCatalog.Application.Queries;
 using ProductCatalog.Application.Services;
+using ProductCatalog.Application.Validators;
 using ProductCatalog.Domain.Entities;
 using ProductCatalog.Tests.Fakes;
 
@@ -50,11 +52,11 @@ public class ProductServiceTests
     }
 
     [Fact]
-    public async Task GetProductsAsync_ThrowsArgumentException_WhenMinPriceIsGreaterThanMaxPrice()
+    public async Task GetProductsAsync_ThrowsValidationException_WhenMinPriceIsGreaterThanMaxPrice()
     {
         var service = CreateService();
 
-        await Assert.ThrowsAsync<ArgumentException>(() =>
+        await Assert.ThrowsAsync<ValidationException>(() =>
             service.GetProductsAsync(new ProductQueryParameters
             {
                 MinPrice = 1000,
@@ -143,7 +145,8 @@ public class ProductServiceTests
         return new ProductService(
             source,
             NullLogger<ProductService>.Instance,
-            cache);
+            cache,
+            new ProductQueryValidator());
     }
 
     private static IReadOnlyCollection<Product> CreateProducts()

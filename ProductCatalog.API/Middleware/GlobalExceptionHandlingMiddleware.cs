@@ -1,3 +1,4 @@
+using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ProductCatalog.API.Middleware;
@@ -51,6 +52,13 @@ public class GlobalExceptionHandlingMiddleware
 
         problemDetails.Extensions["traceId"] = context.TraceIdentifier;
 
+        if (exception is ValidationException validationException)
+        {
+            problemDetails.Extensions["errors"] = validationException.Errors
+                .Select(error => error.ErrorMessage)
+                .ToList();
+        }
+
         context.Response.Clear();
         context.Response.StatusCode = statusCode;
         context.Response.ContentType = "application/problem+json";
@@ -62,6 +70,7 @@ public class GlobalExceptionHandlingMiddleware
     {
         return exception switch
         {
+            ValidationException => StatusCodes.Status400BadRequest,
             ArgumentException => StatusCodes.Status400BadRequest,
             KeyNotFoundException => StatusCodes.Status404NotFound,
             HttpRequestException => StatusCodes.Status503ServiceUnavailable,
@@ -88,6 +97,11 @@ public class GlobalExceptionHandlingMiddleware
         if (statusCode == StatusCodes.Status500InternalServerError)
         {
             return "An unexpected error occurred.";
+        }
+
+        if (exception is ValidationException validationException)
+        {
+            return validationException.Errors.FirstOrDefault()?.ErrorMessage ?? exception.Message;
         }
 
         return exception.Message;

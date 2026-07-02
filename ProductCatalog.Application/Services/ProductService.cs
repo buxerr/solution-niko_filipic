@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Caching.Memory;
+﻿using FluentValidation;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using ProductCatalog.Application.Abstractions;
 using ProductCatalog.Application.DTOs;
@@ -14,15 +15,18 @@ public class ProductService : IProductService
     private readonly IProductSource _productSource;
     private readonly ILogger<ProductService> _logger;
     private readonly IMemoryCache _cache;
+    private readonly IValidator<ProductQueryParameters> _validator;
 
     public ProductService(
         IProductSource productSource,
         ILogger<ProductService> logger,
-        IMemoryCache cache)
+        IMemoryCache cache,
+        IValidator<ProductQueryParameters> validator)
     {
         _productSource = productSource;
         _logger = logger;
         _cache = cache;
+        _validator = validator;
     }
 
     public async Task<IReadOnlyCollection<ProductListItemDto>> GetProductsAsync(
@@ -35,49 +39,44 @@ public class ProductService : IProductService
             query.MinPrice,
             query.MaxPrice);
 
-        ValidateQuery(query);
+        await ValidateQuery(query, cancellationToken);
 
         var cacheKey = CreateProductsCacheKey(query);
 
-        if (_cache.TryGetValue(cacheKey, out IReadOnlyCollection<ProductListItemDto>? cachedProducts))
+        return await GetOrSetCacheAsync(cacheKey, TimeSpan.FromMinutes(5), async () =>
         {
-            _logger.LogInformation("Returning products from cache. CacheKey: {CacheKey}", cacheKey);
-            return cachedProducts!;
-        }
+            var products = await _productSource.GetProductsAsync(cancellationToken);
+            var filteredProducts = products.AsEnumerable();
 
-        var products = await _productSource.GetProductsAsync(cancellationToken);
-        var filteredProducts = products.AsEnumerable();
+            if (!string.IsNullOrWhiteSpace(query.Category))
+            {
+                filteredProducts = filteredProducts.Where(product =>
+                    product.CategorySlug.Equals(query.Category, StringComparison.OrdinalIgnoreCase));
+            }
 
-        if (!string.IsNullOrWhiteSpace(query.Category))
-        {
-            filteredProducts = filteredProducts.Where(product =>
-                product.CategorySlug.Equals(query.Category, StringComparison.OrdinalIgnoreCase));
-        }
+            if (query.MinPrice.HasValue)
+            {
+                filteredProducts = filteredProducts.Where(product =>
+                    product.Price >= query.MinPrice.Value);
+            }
 
-        if (query.MinPrice.HasValue)
-        {
-            filteredProducts = filteredProducts.Where(product =>
-                product.Price >= query.MinPrice.Value);
-        }
+            if (query.MaxPrice.HasValue)
+            {
+                filteredProducts = filteredProducts.Where(product =>
+                    product.Price <= query.MaxPrice.Value);
+            }
 
-        if (query.MaxPrice.HasValue)
-        {
-            filteredProducts = filteredProducts.Where(product =>
-                product.Price <= query.MaxPrice.Value);
-        }
+            var result = filteredProducts
+                .Select(MapToListItemDto)
+                .ToList();
 
-        var result = filteredProducts
-            .Select(MapToListItemDto)
-            .ToList();
+            _logger.LogInformation(
+                "Returning {ProductCount} products and storing result in cache. CacheKey: {CacheKey}",
+                result.Count,
+                cacheKey);
 
-        _cache.Set(cacheKey, result, TimeSpan.FromMinutes(5));
-
-        _logger.LogInformation(
-            "Returning {ProductCount} products and storing result in cache. CacheKey: {CacheKey}",
-            result.Count,
-            cacheKey);
-
-        return result;
+            return result;
+        });
     }
 
     public async Task<IReadOnlyCollection<ProductListItemDto>> SearchProductsAsync(
@@ -92,29 +91,24 @@ public class ProductService : IProductService
         var normalizedSearchTerm = searchTerm.Trim().ToLowerInvariant();
         var cacheKey = $"products:search:{normalizedSearchTerm}";
 
-        if (_cache.TryGetValue(cacheKey, out IReadOnlyCollection<ProductListItemDto>? cachedProducts))
+        return await GetOrSetCacheAsync(cacheKey, TimeSpan.FromMinutes(5), async () =>
         {
-            _logger.LogInformation("Returning search results from cache. CacheKey: {CacheKey}", cacheKey);
-            return cachedProducts!;
-        }
+            _logger.LogInformation("Searching products by term: {SearchTerm}", searchTerm);
 
-        _logger.LogInformation("Searching products by term: {SearchTerm}", searchTerm);
+            var products = await _productSource.GetProductsAsync(cancellationToken);
 
-        var products = await _productSource.GetProductsAsync(cancellationToken);
+            var result = products
+                .Where(product => product.Title.Contains(normalizedSearchTerm, StringComparison.OrdinalIgnoreCase))
+                .Select(MapToListItemDto)
+                .ToList();
 
-        var result = products
-            .Where(product => product.Title.Contains(normalizedSearchTerm, StringComparison.OrdinalIgnoreCase))
-            .Select(MapToListItemDto)
-            .ToList();
+            _logger.LogInformation(
+                "Search term {SearchTerm} returned {ProductCount} products and was stored in cache.",
+                normalizedSearchTerm,
+                result.Count);
 
-        _cache.Set(cacheKey, result, TimeSpan.FromMinutes(5));
-
-        _logger.LogInformation(
-            "Search term {SearchTerm} returned {ProductCount} products and was stored in cache.",
-            normalizedSearchTerm,
-            result.Count);
-
-        return result;
+            return result;
+        });
     }
 
     public async Task<ProductDetailsDto?> GetProductByIdAsync(
@@ -123,24 +117,17 @@ public class ProductService : IProductService
     {
         var cacheKey = $"products:details:{id}";
 
-        if (_cache.TryGetValue(cacheKey, out ProductDetailsDto? cachedProduct))
+        return await GetOrSetCacheAsync(cacheKey, TimeSpan.FromMinutes(10), async () =>
         {
-            _logger.LogInformation("Returning product details from cache. ProductId: {ProductId}", id);
-            return cachedProduct;
-        }
+            var product = await _productSource.GetProductByIdAsync(id, cancellationToken);
 
-        var product = await _productSource.GetProductByIdAsync(id, cancellationToken);
+            if (product is null)
+            {
+                return null;
+            }
 
-        if (product is null)
-        {
-            return null;
-        }
-
-        var result = MapToDetailsDto(product);
-
-        _cache.Set(cacheKey, result, TimeSpan.FromMinutes(10));
-
-        return result;
+            return MapToDetailsDto(product);
+        });
     }
 
     public async Task<IReadOnlyCollection<CategoryDto>> GetCategoriesAsync(
@@ -148,23 +135,36 @@ public class ProductService : IProductService
     {
         const string cacheKey = "categories:all";
 
-        if (_cache.TryGetValue(cacheKey, out IReadOnlyCollection<CategoryDto>? cachedCategories))
+        return await GetOrSetCacheAsync(cacheKey, TimeSpan.FromMinutes(30), async () =>
         {
-            _logger.LogInformation("Returning categories from cache.");
-            return cachedCategories!;
+            var categories = await _productSource.GetCategoriesAsync(cancellationToken);
+
+            return categories
+                .Select(category => new CategoryDto
+                {
+                    Slug = category.Slug,
+                    Name = category.Name
+                })
+                .ToList();
+        });
+    }
+
+    private async Task<T> GetOrSetCacheAsync<T>(
+        string cacheKey,
+        TimeSpan duration,
+        Func<Task<T>> factory)
+    {
+        if (_cache.TryGetValue(cacheKey, out T? cached) && cached is not null)
+        {
+            _logger.LogInformation("Cache hit. CacheKey: {CacheKey}", cacheKey);
+            return cached;
         }
 
-        var categories = await _productSource.GetCategoriesAsync(cancellationToken);
-
-        var result = categories
-            .Select(category => new CategoryDto
-            {
-                Slug = category.Slug,
-                Name = category.Name
-            })
-            .ToList();
-
-        _cache.Set(cacheKey, result, TimeSpan.FromMinutes(30));
+        var result = await factory();
+        if (result is not null)
+        {
+            _cache.Set(cacheKey, result, duration);
+        }
 
         return result;
     }
@@ -220,23 +220,14 @@ public class ProductService : IProductService
         return $"products:filter:{category}:{minPrice}:{maxPrice}";
     }
 
-    private static void ValidateQuery(ProductQueryParameters query)
+    private async Task ValidateQuery(
+        ProductQueryParameters query,
+        CancellationToken cancellationToken)
     {
-        if (query.MinPrice < 0)
+        var validationResult = await _validator.ValidateAsync(query, cancellationToken);
+        if (!validationResult.IsValid)
         {
-            throw new ArgumentException("Minimum price cannot be negative.");
-        }
-
-        if (query.MaxPrice < 0)
-        {
-            throw new ArgumentException("Maximum price cannot be negative.");
-        }
-
-        if (query.MinPrice.HasValue &&
-            query.MaxPrice.HasValue &&
-            query.MinPrice > query.MaxPrice)
-        {
-            throw new ArgumentException("Minimum price cannot be greater than maximum price.");
+            throw new ValidationException(validationResult.Errors);
         }
     }
 }

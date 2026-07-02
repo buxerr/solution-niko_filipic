@@ -1,9 +1,12 @@
+using FluentValidation;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.OpenApi.Models;
 using ProductCatalog.API.Authentication;
 using ProductCatalog.API.Middleware;
+using ProductCatalog.Application.Queries;
 using ProductCatalog.Application.Services;
+using ProductCatalog.Application.Validators;
 using ProductCatalog.Infrastructure;
 using Serilog;
 using System.Threading.RateLimiting;
@@ -53,6 +56,7 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddMemoryCache();
 
 builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<IValidator<ProductQueryParameters>, ProductQueryValidator>();
 
 builder.Services.AddAuthentication(DummyJsonAuthenticationDefaults.AuthenticationScheme)
     .AddScheme<AuthenticationSchemeOptions, DummyJsonAuthenticationHandler>(
