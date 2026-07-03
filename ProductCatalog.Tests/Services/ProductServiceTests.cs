@@ -132,7 +132,38 @@ public class ProductServiceTests
         Assert.Contains(result, category => category.Slug == "smartphones");
     }
 
+    [Fact]
+    public async Task GetProductsAsync_DoesNotCallProductSourceAgain_WhenSameQueryIsRequestedTwice()
+    {
+        var (service, source) = CreateTrackedService();
+        var query = new ProductQueryParameters();
+
+        await service.GetProductsAsync(query);
+        await service.GetProductsAsync(query);
+
+        Assert.Equal(1, source.GetProductsCallCount);
+    }
+
+    [Fact]
+    public async Task GetProductByIdAsync_DoesNotCallProductSourceAgain_WhenSameIdIsRequestedTwice()
+    {
+        var (service, source) = CreateTrackedService();
+
+        await service.GetProductByIdAsync(1);
+        await service.GetProductByIdAsync(1);
+
+        Assert.Equal(1, source.GetProductByIdCallCount);
+    }
+
     private static ProductService CreateService(
+        IReadOnlyCollection<Product>? products = null,
+        IReadOnlyCollection<Category>? categories = null)
+    {
+        var (service, _) = CreateTrackedService(products, categories);
+        return service;
+    }
+
+    private static (ProductService Service, FakeProductSource Source) CreateTrackedService(
         IReadOnlyCollection<Product>? products = null,
         IReadOnlyCollection<Category>? categories = null)
     {
@@ -142,11 +173,13 @@ public class ProductServiceTests
 
         var cache = new MemoryCache(new MemoryCacheOptions());
 
-        return new ProductService(
+        var service = new ProductService(
             source,
             NullLogger<ProductService>.Instance,
             cache,
             new ProductQueryValidator());
+
+        return (service, source);
     }
 
     private static IReadOnlyCollection<Product> CreateProducts()

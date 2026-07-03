@@ -48,7 +48,48 @@ ProductCatalog.API/appsettings.json
 }
 ```
 
-Aplikacija ne koristi lokalnu bazu podataka i nije potreban Docker za pokretanje.
+Aplikacija ne koristi lokalnu bazu podataka. Docker je opcionalan — upute za pokretanje u kontejneru su u nastavku.
+
+---
+
+## Pokretanje s Dockerom
+
+Preduvjet:
+
+```text
+Docker Desktop (ili Docker Engine + Docker Compose)
+```
+
+Build i pokretanje jednom komandom:
+
+```powershell
+docker compose up --build
+```
+
+API je dostupan na:
+
+```text
+http://localhost:8080
+```
+
+Swagger UI (Development okruženje):
+
+```text
+http://localhost:8080/swagger
+```
+
+Health check:
+
+```text
+http://localhost:8080/health
+```
+
+Ručni build i pokretanje bez Compose-a:
+
+```powershell
+docker build -t productcatalog-api .
+docker run --rm -p 8080:8080 -e ASPNETCORE_ENVIRONMENT=Development -e ASPNETCORE_URLS=http://+:8080 productcatalog-api
+```
 
 ---
 
@@ -120,9 +161,11 @@ Ručni test kroz Swagger:
 - **Swagger / OpenAPI** – dokumentacija i ručno testiranje endpointova
 - **DummyJSON REST API** – izvor proizvoda, kategorija i autentikacijskih podataka
 - **IMemoryCache** – cache za ponavljajuće upite i validaciju tokena
+- **FluentValidation** – deklarativna validacija query parametara
 - **Serilog** – strukturirano logiranje u konzolu i file
 - **ASP.NET Core Authentication** – custom DummyJSON Bearer authentication handler
 - **ASP.NET Core Rate Limiting** – zaštita API-ja i auth endpointova
+- **Docker** – multistage build i opcionalno pokretanje kroz Compose
 - **xUnit** – unit i integration testovi
 - **Microsoft.AspNetCore.Mvc.Testing** – integration testovi API-ja
 
@@ -176,7 +219,8 @@ GET /health
 - dohvat kategorija
 - autentikacija i autorizacija
 - refresh token endpoint
-- cache za ponavljajuće pozive s istim parametrima
+- deklarativna validacija ulaznih parametara (FluentValidation)
+- cache za ponavljajuće pozive s istim parametrima (centralizirano kroz `GetOrSetCacheAsync` helper u `ProductService`)
 - Serilog logiranje
 - global exception handling middleware
 - rate limiting
@@ -189,7 +233,7 @@ GET /health
 
 ```text
 ProductCatalog.API             - controllers, authentication, middleware, startup
-ProductCatalog.Application     - services, DTOs, queries, interfaces
+ProductCatalog.Application     - services, DTOs, queries, interfaces, validators
 ProductCatalog.Domain          - domain modeli
 ProductCatalog.Infrastructure  - DummyJSON integracija
 ProductCatalog.Tests           - unit i integration testovi
